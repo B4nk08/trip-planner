@@ -23,8 +23,32 @@ export function formatDayHeading(dayDate: string): string {
   });
 }
 
+/** Short date e.g. Aug 12, 2026 */
+export function formatShortDate(dayDate: string): string {
+  return parseDateKey(dayDate).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 export function todayKey(): string {
   return toDateKey(new Date());
+}
+
+/** Inclusive list of YYYY-MM-DD keys from start to end */
+export function eachDateKey(startKey: string, endKey: string): string[] {
+  const start = parseDateKey(startKey);
+  const end = parseDateKey(endKey);
+  if (start > end) return [];
+
+  const keys: string[] = [];
+  const cursor = new Date(start);
+  while (cursor <= end) {
+    keys.push(toDateKey(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return keys;
 }
 
 export function groupByDay(activities: Activity[]): Map<string, Activity[]> {

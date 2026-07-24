@@ -46,7 +46,7 @@ export function TripApp() {
     if (list.length === 0) {
       const { data: created, error: createError } = await supabase
         .from("trips")
-        .insert({ name: "My Trip" })
+        .insert({ name: "My Trip", start_date: null, end_date: null })
         .select("*")
         .single();
 
@@ -91,10 +91,15 @@ export function TripApp() {
     };
   }, [loadTrips]);
 
-  async function handleCreate(name: string, initialFund: number) {
+  async function handleCreate(
+    name: string,
+    initialFund: number,
+    startDate: string,
+    endDate: string
+  ) {
     const { data, error } = await supabase
       .from("trips")
-      .insert({ name })
+      .insert({ name, start_date: startDate, end_date: endDate })
       .select("*")
       .single();
 

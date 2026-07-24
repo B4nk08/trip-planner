@@ -45,6 +45,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { fundBalance, formatMoney } from "@/lib/fund";
 import {
+  eachDateKey,
   formatDayHeading,
   getDayDates,
   groupByDay,
@@ -109,9 +110,14 @@ export function TripBoard({ trip }: TripBoardProps) {
     })
   );
 
+  const tripRangeDays = useMemo(() => {
+    if (!trip.start_date || !trip.end_date) return [] as string[];
+    return eachDateKey(trip.start_date, trip.end_date);
+  }, [trip.start_date, trip.end_date]);
+
   const dayDates = useMemo(
-    () => getDayDates(activities, extraDays),
-    [activities, extraDays]
+    () => getDayDates(activities, [...extraDays, ...tripRangeDays]),
+    [activities, extraDays, tripRangeDays]
   );
 
   const byDay = useMemo(() => groupByDay(activities), [activities]);

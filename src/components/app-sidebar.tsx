@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { MapPinned, Pencil, Plus, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { CalendarIcon, MapPinned, Pencil, Plus, Trash2 } from "lucide-react";
+import { type DateRange } from "react-day-picker";
 import { toast } from "sonner";
 import {
   Sidebar,
@@ -18,6 +19,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -38,14 +40,30 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  formatShortDate,
+  toDateKey,
+  todayKey,
+} from "@/lib/activities";
 import type { Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type AppSidebarProps = {
   trips: Trip[];
   selectedTripId: string | null;
   onSelect: (tripId: string) => void;
-  onCreate: (name: string, initialFund: number) => Promise<void>;
+  onCreate: (
+    name: string,
+    initialFund: number,
+    startDate: string,
+    endDate: string
+  ) => Promise<void>;
   onRename: (tripId: string, name: string) => Promise<void>;
   onDelete: (tripId: string) => Promise<void>;
 };
@@ -53,6 +71,12 @@ type AppSidebarProps = {
 function tripInitial(name: string) {
   const trimmed = name.trim();
   return trimmed ? trimmed.charAt(0).toUpperCase() : "T";
+}
+
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 export function AppSidebar({
@@ -64,6 +88,7 @@ export function AppSidebar({
   onDelete,
 }: AppSidebarProps) {
   const { isMobile, setOpenMobile, state } = useSidebar();
+  const isNarrow = useIsMobile();
   const collapsed = state === "collapsed" && !isMobile;
   const [nameDialog, setNameDialog] = useState<
     | { mode: "create" }
@@ -73,7 +98,18 @@ export function AppSidebar({
   const [tripToDelete, setTripToDelete] = useState<Trip | null>(null);
   const [nameValue, setNameValue] = useState("");
   const [initialFund, setInitialFund] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [rangeOpen, setRangeOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const today = useMemo(() => startOfToday(), []);
+
+  const rangeLabel = useMemo(() => {
+    if (!dateRange?.from) return "Select travel dates";
+    const fromKey = toDateKey(dateRange.from);
+    if (!dateRange.to) return `${formatShortDate(fromKey)} – …`;
+    return `${formatShortDate(fromKey)} – ${formatShortDate(toDateKey(dateRange.to))}`;
+  }, [dateRange]);
 
   function handleSelectTrip(tripId: string) {
     onSelect(tripId);
@@ -83,12 +119,15 @@ export function AppSidebar({
   function openCreate() {
     setNameValue("");
     setInitialFund("");
+    setDateRange({ from: today, to: undefined });
+    setRangeOpen(false);
     setNameDialog({ mode: "create" });
   }
 
   function openRename(trip: Trip) {
     setNameValue(trip.name);
     setInitialFund("");
+    setDateRange(undefined);
     setNameDialog({ mode: "rename", trip });
   }
 
@@ -102,12 +141,25 @@ export function AppSidebar({
         toast.error("Please set a starting fund greater than 0");
         return;
       }
+      if (!dateRange?.from || !dateRange?.to) {
+        toast.error("Please select departure and return dates");
+        return;
+      }
+      if (dateRange.from < today) {
+        toast.error("Departure cannot be before today");
+        return;
+      }
     }
 
     setSaving(true);
     try {
       if (nameDialog.mode === "create") {
-        await onCreate(name, Number(initialFund));
+        await onCreate(
+          name,
+          Number(initialFund),
+          toDateKey(dateRange!.from!),
+          toDateKey(dateRange!.to!)
+        );
         toast.success("Trip created");
       } else {
         await onRename(nameDialog.trip.id, name);
@@ -249,7 +301,14 @@ export function AppSidebar({
           if (!open) setNameDialog(null);
         }}
       >
-        <DialogContent className="rounded-3xl border-white/70 bg-[#fffcfa] sm:max-w-sm">
+        <DialogContent
+          className={cn(
+            "rounded-3xl border-white/70 bg-[#fffcfa]",
+            nameDialog?.mode === "create"
+              ? "sm:max-w-[min(92vw,44rem)]"
+              : "sm:max-w-sm"
+          )}
+        >
           <DialogHeader>
             <DialogTitle className="font-display text-xl">
               {nameDialog?.mode === "rename" ? "Rename trip" : "New trip"}
@@ -257,9 +316,10 @@ export function AppSidebar({
             <DialogDescription>
               {nameDialog?.mode === "rename"
                 ? "Update the trip name"
-                : "Name the trip and set the starting shared fund"}
+                : "Pick dates, set the starting fund, and name your trip"}
             </DialogDescription>
           </DialogHeader>
+
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label htmlFor="trip-name">Trip name</Label>
@@ -269,7 +329,7 @@ export function AppSidebar({
                 onChange={(e) => setNameValue(e.target.value)}
                 placeholder="My Trip"
                 className="rounded-xl"
-                autoFocus
+                autoFocus={nameDialog?.mode === "rename"}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && nameDialog?.mode === "rename") {
                     void handleSaveName();
@@ -277,28 +337,75 @@ export function AppSidebar({
                 }}
               />
             </div>
+
             {nameDialog?.mode === "create" ? (
-              <div className="space-y-2">
-                <Label htmlFor="trip-fund">Starting shared fund</Label>
-                <Input
-                  id="trip-fund"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  inputMode="decimal"
-                  value={initialFund}
-                  onChange={(e) => setInitialFund(e.target.value)}
-                  placeholder="e.g. 5000"
-                  className="rounded-xl"
-                  required
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") void handleSaveName();
-                  }}
-                />
-                <p className="text-xs text-[var(--ink-muted)]">
-                  This becomes the trip fund balance. You can receive or pay later.
-                </p>
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label>Travel dates</Label>
+                  <Popover open={rangeOpen} onOpenChange={setRangeOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className={cn(
+                          "h-10 w-full justify-start rounded-xl border-[var(--line)] bg-white/80 font-normal",
+                          !dateRange?.from && "text-[var(--ink-muted)]"
+                        )}
+                      >
+                        <CalendarIcon className="size-4 text-[var(--accent)]" />
+                        {rangeLabel}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="start"
+                      sideOffset={8}
+                      className="w-auto rounded-3xl border-white/70 bg-[#fffcfa] p-3 shadow-xl"
+                    >
+                      <Calendar
+                        mode="range"
+                        numberOfMonths={isNarrow ? 1 : 2}
+                        selected={dateRange}
+                        onSelect={(range) => {
+                          setDateRange(range);
+                          if (range?.from && range?.to) {
+                            setRangeOpen(false);
+                          }
+                        }}
+                        disabled={{ before: today }}
+                        defaultMonth={today}
+                        className="rounded-2xl bg-[#fffcfa]"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <p className="text-xs text-[var(--ink-muted)]">
+                    From today onward — departure through return. Empty day
+                    boards are created automatically.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="trip-fund">Starting shared fund</Label>
+                  <Input
+                    id="trip-fund"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={initialFund}
+                    onChange={(e) => setInitialFund(e.target.value)}
+                    placeholder="e.g. 5000"
+                    className="rounded-xl"
+                    required
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void handleSaveName();
+                    }}
+                  />
+                  <p className="text-xs text-[var(--ink-muted)]">
+                    This becomes the trip fund balance. You can receive or pay
+                    later.
+                  </p>
+                </div>
+              </>
             ) : null}
           </div>
           <DialogFooter>
@@ -319,10 +426,13 @@ export function AppSidebar({
                 saving ||
                 !nameValue.trim() ||
                 (nameDialog?.mode === "create" &&
-                  (!initialFund || Number(initialFund) <= 0))
+                  (!initialFund ||
+                    Number(initialFund) <= 0 ||
+                    !dateRange?.from ||
+                    !dateRange?.to))
               }
             >
-              {saving ? "Saving..." : "Save"}
+              {saving ? "Saving..." : "Create trip"}
             </Button>
           </DialogFooter>
         </DialogContent>

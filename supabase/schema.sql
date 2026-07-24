@@ -9,8 +9,16 @@
 create table if not exists trips (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  start_date date,
+  end_date date,
   created_at timestamptz default now()
 );
+
+alter table trips
+  add column if not exists start_date date;
+
+alter table trips
+  add column if not exists end_date date;
 
 alter table trips enable row level security;
 
