@@ -86,6 +86,7 @@ export function TripBoard({ trip }: TripBoardProps) {
   const [pendingDay, setPendingDay] = useState<Date | undefined>(undefined);
   const [view, setView] = useState<BoardView>("activities");
   const activitiesRef = useRef(activities);
+  const dragOriginDayRef = useRef<string | null>(null);
 
   useEffect(() => {
     activitiesRef.current = activities;
@@ -268,7 +269,10 @@ export function TripBoard({ trip }: TripBoardProps) {
   }
 
   function handleDragStart(event: DragStartEvent) {
-    setActiveId(String(event.active.id));
+    const id = String(event.active.id);
+    setActiveId(id);
+    const item = activitiesRef.current.find((a) => a.id === id);
+    dragOriginDayRef.current = item?.day_date ?? null;
   }
 
   function handleDragOver(event: DragOverEvent) {
@@ -327,13 +331,17 @@ export function TripBoard({ trip }: TripBoardProps) {
           a.day_date !== activeContainer && a.day_date !== overContainer
       );
 
-      return [...rest, ...sourceRemaining, ...reindexedOver];
+      const next = [...rest, ...sourceRemaining, ...reindexedOver];
+      activitiesRef.current = next;
+      return next;
     });
   }
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveId(null);
+    const originDay = dragOriginDayRef.current;
+    dragOriginDayRef.current = null;
 
     if (!over) {
       await loadActivities();
@@ -358,30 +366,76 @@ export function TripBoard({ trip }: TripBoardProps) {
     }
 
     let nextActivities = current;
-    const sourceDay = activeItem.day_date;
+    const currentDay = activeItem.day_date;
+    const movedAcrossDays = Boolean(originDay && originDay !== overDay);
 
-    if (sourceDay === overDay) {
+    // Same-day reorder (or final position tweak after a cross-day dragOver)
+    if (currentDay === overDay) {
       const items = current
-        .filter((a) => a.day_date === sourceDay)
+        .filter((a) => a.day_date === currentDay)
         .sort((a, b) => a.order_index - b.order_index);
       const oldIndex = items.findIndex((a) => a.id === active.id);
-      const newIndex = items.findIndex((a) => a.id === over.id);
+      const overIsDay = parseDayId(over.id) !== null;
+      const newIndex = overIsDay
+        ? items.length - 1
+        : items.findIndex((a) => a.id === over.id);
 
-      if (oldIndex >= 0 && newIndex >= 0 && oldIndex !== newIndex) {
+      if (
+        oldIndex >= 0 &&
+        newIndex >= 0 &&
+        oldIndex !== newIndex
+      ) {
         const reordered = arrayMove(items, oldIndex, newIndex).map(
           (item, index) => ({ ...item, order_index: index })
         );
         nextActivities = [
-          ...current.filter((a) => a.day_date !== sourceDay),
+          ...current.filter((a) => a.day_date !== currentDay),
           ...reordered,
         ];
         setActivities(nextActivities);
-      } else if (oldIndex === newIndex) {
+      } else if (oldIndex === newIndex && !movedAcrossDays) {
+        // Nothing changed — skip DB write
         return;
       }
+    } else {
+      // Dropped onto another day without a prior dragOver update — move now
+      const without = current.filter((a) => a.id !== active.id);
+      const destItems = without
+        .filter((a) => a.day_date === overDay)
+        .sort((a, b) => a.order_index - b.order_index);
+      const overIndex = destItems.findIndex((a) => a.id === over.id);
+      const insertIndex =
+        parseDayId(over.id) !== null
+          ? destItems.length
+          : overIndex >= 0
+            ? overIndex
+            : destItems.length;
+
+      const moved: Activity = { ...activeItem, day_date: overDay };
+      const nextDest = [...destItems];
+      nextDest.splice(insertIndex, 0, moved);
+
+      const reindexedDest = nextDest.map((item, index) => ({
+        ...item,
+        order_index: index,
+      }));
+
+      const sourceRemaining = without
+        .filter((a) => a.day_date === currentDay)
+        .sort((a, b) => a.order_index - b.order_index)
+        .map((item, index) => ({ ...item, order_index: index }));
+
+      const rest = without.filter(
+        (a) => a.day_date !== currentDay && a.day_date !== overDay
+      );
+
+      nextActivities = [...rest, ...sourceRemaining, ...reindexedDest];
+      setActivities(nextActivities);
     }
 
-    const touchedDays = new Set([sourceDay, overDay]);
+    const touchedDays = new Set<string>([overDay, currentDay]);
+    if (originDay) touchedDays.add(originDay);
+
     const updates = nextActivities
       .filter((a) => touchedDays.has(a.day_date))
       .map((a) => ({
@@ -390,9 +444,21 @@ export function TripBoard({ trip }: TripBoardProps) {
         order_index: a.order_index,
       }));
 
+    // Always include the moved card itself (covers edge cases)
+    if (!updates.some((u) => u.id === activeItem.id)) {
+      const latest = nextActivities.find((a) => a.id === activeItem.id);
+      if (latest) {
+        updates.push({
+          id: latest.id,
+          day_date: latest.day_date,
+          order_index: latest.order_index,
+        });
+      }
+    }
+
     if (updates.length > 0) {
       await persistOrder(updates);
-      toast.success("Order updated");
+      toast.success(movedAcrossDays ? "Moved to another day" : "Order updated");
     }
   }
 
