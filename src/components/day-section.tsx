@@ -50,7 +50,7 @@ export function DaySection({
           onClick={() => onDeleteDay(dayNumber)}
         >
           <Trash2 className="size-3.5" />
-          ลบทั้งวัน
+          Delete all activities
         </Button>
       </div>
 
@@ -67,7 +67,7 @@ export function DaySection({
         >
           {activities.length === 0 ? (
             <div className="flex min-h-28 items-center justify-center rounded-2xl border border-dashed border-[var(--line)] bg-white/40 px-4 text-sm text-[var(--ink-muted)]">
-              ยังไม่มีกิจกรรม ลากการ์ดมาวางที่นี่ได้
+              No activities yet, drag and drop cards here
             </div>
           ) : (
             activities.map((activity) => (
@@ -88,7 +88,7 @@ export function DaySection({
         onClick={() => onAdd(dayNumber)}
       >
         <Plus className="size-4" />
-        เพิ่มกิจกรรม
+        Add activity
       </Button>
     </section>
   );

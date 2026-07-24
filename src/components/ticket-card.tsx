@@ -46,7 +46,7 @@ export function TicketCard({
         <button
           type="button"
           className="flex w-9 shrink-0 cursor-grab items-center justify-center border-r border-dashed border-[var(--line)] text-[var(--ink-muted)] touch-none active:cursor-grabbing"
-          aria-label="ลากเพื่อย้ายลำดับ"
+          aria-label="Drag to reorder"
           {...dragHandleProps}
         >
           <GripVertical className="size-4" />
@@ -66,10 +66,10 @@ export function TicketCard({
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="truncate text-[11px] tracking-wide text-[var(--ink-muted)] uppercase">
-                  {activity.location || "ไม่ระบุสถานที่"}
+                  {activity.location || "No location specified"}
                 </p>
                 <h3 className="mt-0.5 truncate font-display text-lg text-[var(--ink)] sm:text-xl">
-                  {activity.activity || "กิจกรรมไม่มีชื่อ"}
+                  {activity.activity || "Activity without a name"}
                 </h3>
               </div>
               {onEdit ? (
@@ -79,7 +79,7 @@ export function TicketCard({
                   size="icon-sm"
                   className="shrink-0 text-[var(--ink-soft)] hover:bg-white/70 hover:text-[var(--ink)]"
                   onClick={() => onEdit(activity)}
-                  aria-label="แก้ไขกิจกรรม"
+                  aria-label="Edit activity"
                 >
                   <Pencil className="size-3.5" />
                 </Button>
@@ -102,7 +102,7 @@ export function TicketCard({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={activity.image_url}
-            alt={activity.activity || "รูปกิจกรรม"}
+            alt={activity.activity || "Activity image"}
             className="max-h-56 w-full object-cover"
             loading="lazy"
           />

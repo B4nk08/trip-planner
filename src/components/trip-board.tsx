@@ -91,7 +91,7 @@ export function TripBoard() {
       .order("order_index", { ascending: true });
 
     if (error) {
-      toast.error("โหลดข้อมูลไม่สำเร็จ");
+      toast.error("Failed to load data");
       setLoading(false);
       return;
     }
@@ -113,7 +113,7 @@ export function TripBoard() {
       if (cancelled) return;
 
       if (error) {
-        toast.error("โหลดข้อมูลไม่สำเร็จ");
+        toast.error("Failed to load data");
         setLoading(false);
         return;
       }
@@ -157,7 +157,7 @@ export function TripBoard() {
 
     const failed = results.some((r) => r.error);
     if (failed) {
-      toast.error("อัปเดตลำดับไม่สำเร็จ");
+      toast.error("Failed to update order");
       await loadActivities();
     }
   }
@@ -297,7 +297,7 @@ export function TripBoard() {
 
     if (updates.length > 0) {
       await persistOrder(updates);
-      toast.success("อัปเดตลำดับแล้ว");
+      toast.success("Order updated");
     }
   }
 
@@ -322,7 +322,7 @@ export function TripBoard() {
         imageUrl = await uploadActivityImage(values.imageFile);
       } catch (err) {
         toast.error(
-          err instanceof Error ? err.message : "อัปโหลดรูปไม่สำเร็จ"
+          err instanceof Error ? err.message : "Failed to upload image"
         );
         throw err;
       }
@@ -341,11 +341,11 @@ export function TripBoard() {
       });
 
       if (error) {
-        toast.error("เพิ่มกิจกรรมไม่สำเร็จ");
+        toast.error("Failed to add activity");
         throw error;
       }
 
-      toast.success("เพิ่มกิจกรรมแล้ว");
+      toast.success("Activity added");
       await loadActivities();
       return;
     }
@@ -362,11 +362,11 @@ export function TripBoard() {
       .eq("id", formState.activity.id);
 
     if (error) {
-      toast.error("บันทึกไม่สำเร็จ");
+      toast.error("Failed to save");
       throw error;
     }
 
-    toast.success("บันทึกแล้ว");
+    toast.success("Saved");
     await loadActivities();
   }
 
@@ -380,7 +380,7 @@ export function TripBoard() {
       .eq("id", formState.activity.id);
 
     if (error) {
-      toast.error("ลบไม่สำเร็จ");
+      toast.error("Failed to delete");
       throw error;
     }
 
@@ -388,7 +388,7 @@ export function TripBoard() {
       await deleteActivityImage(imageUrl);
     }
 
-    toast.success("ลบกิจกรรมแล้ว");
+    toast.success("Activity deleted");
     await loadActivities();
   }
 
@@ -396,7 +396,7 @@ export function TripBoard() {
     const maxDay = Math.max(0, ...dayNumbers);
     const next = maxDay + 1;
     setExtraDays((prev) => [...prev, next]);
-    toast.success(`เพิ่ม Day ${next} แล้ว`);
+      toast.success(`Added Day ${next}`);
   }
 
   async function handleDeleteDay() {
@@ -411,7 +411,7 @@ export function TripBoard() {
         .eq("day_number", day);
 
       if (error) {
-        toast.error("ลบวันไม่สำเร็จ");
+        toast.error("Failed to delete day");
         setDayToDelete(null);
         return;
       }
@@ -432,7 +432,7 @@ export function TripBoard() {
         )
       );
       if (results.some((r) => r.error)) {
-        toast.error("จัดเรียงวันใหม่ไม่สำเร็จ");
+        toast.error("Failed to reorder days");
       }
     }
 
@@ -442,7 +442,7 @@ export function TripBoard() {
         .map((d) => (d > day ? d - 1 : d))
     );
     setDayToDelete(null);
-    toast.success(`ลบ Day ${day} แล้ว`);
+    toast.success(`Day ${day} deleted`);
     await loadActivities();
   }
 
@@ -478,7 +478,7 @@ export function TripBoard() {
             onClick={handleAddDay}
           >
             <Plus className="size-4" />
-            เพิ่มวันใหม่
+            Add new day
           </Button>
         </header>
 
@@ -553,19 +553,19 @@ export function TripBoard() {
         <AlertDialogContent className="rounded-3xl border-white/70 bg-[#fffcfa]">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-display text-xl">
-              ลบทั้ง Day {dayToDelete}?
+              Delete all activities for Day {dayToDelete}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              กิจกรรมทั้งหมดในวันนี้จะถูกลบ และวันถัดไปจะเลขวันใหม่ให้อัตโนมัติ
+              All activities for this day will be deleted, and the next day will be renumbered automatically
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-full">ยกเลิก</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-full">Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="rounded-full bg-rose-500 text-white hover:bg-rose-600"
               onClick={handleDeleteDay}
             >
-              ยืนยันลบทั้งวัน
+              Confirm delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

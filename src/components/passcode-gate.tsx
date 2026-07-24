@@ -102,10 +102,10 @@ export function PasscodeGate({ children }: PasscodeGateProps) {
 
       <div className="relative w-full max-w-sm animate-fade-up rounded-3xl border border-white/70 bg-white/70 p-8 shadow-[0_20px_60px_-24px_rgba(90,120,140,0.35)] backdrop-blur-md">
         <p className="font-display text-3xl tracking-tight text-[var(--ink)]">
-          Trip Journal
+          Trip Khao Yai
         </p>
         <p className="mt-2 text-sm leading-relaxed text-[var(--ink-soft)]">
-          กรอกรหัสผ่าน 6 หลักเพื่อเข้าสู่แผนทริป
+          Enter the passcode to access the trip planner
         </p>
 
         <div className="mt-8 flex justify-between gap-2" onPaste={handlePaste}>
@@ -134,7 +134,7 @@ export function PasscodeGate({ children }: PasscodeGateProps) {
 
         {error && (
           <p className="mt-3 text-center text-sm text-rose-500">
-            รหัสไม่ถูกต้อง ลองอีกครั้ง
+            Incorrect passcode, try again
           </p>
         )}
 
@@ -144,7 +144,7 @@ export function PasscodeGate({ children }: PasscodeGateProps) {
           onClick={() => verify(digits.join(""))}
           disabled={digits.some((d) => !d)}
         >
-          เข้าสู่แผนทริป
+          Enter the trip planner
         </Button>
       </div>
     </div>

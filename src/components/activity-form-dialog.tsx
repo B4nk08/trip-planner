@@ -138,7 +138,7 @@ function ActivityFormFields({
 
         <div className="max-h-[65vh] space-y-4 overflow-y-auto px-6 py-5">
           <div className="space-y-2">
-            <Label htmlFor="time">เวลา</Label>
+            <Label htmlFor="time">Time</Label>
             <Input
               id="time"
               type="time"
@@ -150,19 +150,19 @@ function ActivityFormFields({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="location">สถานที่</Label>
+            <Label htmlFor="location">Location</Label>
             <Input
               id="location"
               value={values.location}
               onChange={(e) =>
                 setValues((v) => ({ ...v, location: e.target.value }))
               }
-              placeholder="เช่น สนามบิน / คาเฟ่"
+              placeholder="e.g. Airport / Cafe"
               className="rounded-xl bg-white/80"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="activity">ชื่อกิจกรรม</Label>
+            <Label htmlFor="activity">Activity</Label>
             <Input
               id="activity"
               value={values.activity}
@@ -175,21 +175,21 @@ function ActivityFormFields({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="note">โน้ต</Label>
+            <Label htmlFor="note">Note</Label>
             <Textarea
               id="note"
               value={values.note}
               onChange={(e) =>
                 setValues((v) => ({ ...v, note: e.target.value }))
               }
-              placeholder="รายละเอียดเพิ่มเติม"
+              placeholder="Additional details"
               rows={3}
               className="rounded-xl bg-white/80"
             />
           </div>
 
           <div className="space-y-2">
-            <Label>รูปภาพ</Label>
+            <Label>Image</Label>
             <input
               ref={fileInputRef}
               type="file"
@@ -203,7 +203,7 @@ function ActivityFormFields({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={previewUrl}
-                  alt="ตัวอย่างรูป"
+                  alt="Example image"
                   className="max-h-48 w-full object-cover"
                 />
                 <Button
@@ -212,7 +212,7 @@ function ActivityFormFields({
                   size="icon-sm"
                   className="absolute top-2 right-2 rounded-full bg-white/90"
                   onClick={handleRemoveImage}
-                  aria-label="ลบรูป"
+                  aria-label="Remove image"
                 >
                   <X className="size-3.5" />
                 </Button>
@@ -224,7 +224,7 @@ function ActivityFormFields({
                 className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--line)] bg-white/60 px-4 py-8 text-sm text-[var(--ink-soft)] transition hover:bg-white/90"
               >
                 <ImagePlus className="size-5 text-[var(--accent)]" />
-                เลือกภาพ (สูงสุด 3 MB)
+                Select image (maximum 3 MB)
               </button>
             )}
 
@@ -236,7 +236,7 @@ function ActivityFormFields({
                 className="rounded-full"
                 onClick={() => fileInputRef.current?.click()}
               >
-                เปลี่ยนรูป
+                Change image
               </Button>
             ) : null}
           </div>
@@ -252,7 +252,7 @@ function ActivityFormFields({
               disabled={saving}
             >
               <Trash2 className="size-3.5" />
-              ลบ
+              Delete
             </Button>
           ) : (
             <span />
@@ -265,14 +265,14 @@ function ActivityFormFields({
               onClick={() => onOpenChange(false)}
               disabled={saving}
             >
-              ยกเลิก
+              Cancel
             </Button>
             <Button
               type="submit"
               className="rounded-full bg-[var(--accent)] text-white hover:bg-[var(--accent-deep)]"
               disabled={saving || !values.activity.trim()}
             >
-              {saving ? "กำลังบันทึก..." : "บันทึก"}
+              {saving ? "Saving..." : "Save"}
             </Button>
           </div>
         </DialogFooter>
@@ -282,19 +282,19 @@ function ActivityFormFields({
         <AlertDialogContent className="rounded-3xl border-white/70 bg-[#fffcfa]">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-display text-xl">
-              ลบกิจกรรมนี้?
+                Delete this activity?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              การลบจะไม่สามารถกู้คืนได้
+              Deleting this activity cannot be undone
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-full">ยกเลิก</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-full">Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="rounded-full bg-rose-500 text-white hover:bg-rose-600"
               onClick={handleDelete}
             >
-              ยืนยันลบ
+              Confirm delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
