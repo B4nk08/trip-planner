@@ -77,6 +77,12 @@ export function TicketCard({
                 <h3 className="mt-0.5 truncate font-display text-base text-[var(--ink)] sm:text-xl">
                   {activity.activity || "Activity without a name"}
                 </h3>
+                {activity.distance_km != null &&
+                Number.isFinite(Number(activity.distance_km)) ? (
+                  <p className="mt-1 text-xs text-[var(--ink-soft)]">
+                    {Number(activity.distance_km)} km from stay
+                  </p>
+                ) : null}
               </div>
               {onEdit ? (
                 <Button

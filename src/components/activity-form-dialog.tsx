@@ -32,6 +32,7 @@ export type ActivityFormValues = {
   location: string;
   activity: string;
   note: string;
+  distance_km: string;
   image_url: string | null;
   imageFile: File | null;
   removeImage: boolean;
@@ -52,6 +53,10 @@ function toValues(initial?: Activity | null): ActivityFormValues {
     location: initial?.location ?? "",
     activity: initial?.activity ?? "",
     note: initial?.note ?? "",
+    distance_km:
+      initial?.distance_km != null && Number.isFinite(Number(initial.distance_km))
+        ? String(initial.distance_km)
+        : "",
     image_url: initial?.image_url ?? null,
     imageFile: null,
     removeImage: false,
@@ -161,6 +166,27 @@ function ActivityFormFields({
                 setValues((v) => ({ ...v, location: e.target.value }))
               }
               placeholder="e.g. Airport / Cafe"
+              className="rounded-xl bg-white/80"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="distance_km">
+              Distance from stay{" "}
+              <span className="font-normal text-[var(--ink-muted)]">
+                (km, optional)
+              </span>
+            </Label>
+            <Input
+              id="distance_km"
+              type="number"
+              min="0"
+              step="0.1"
+              inputMode="decimal"
+              value={values.distance_km}
+              onChange={(e) =>
+                setValues((v) => ({ ...v, distance_km: e.target.value }))
+              }
+              placeholder="e.g. 12.5"
               className="rounded-xl bg-white/80"
             />
           </div>

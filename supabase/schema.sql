@@ -103,6 +103,9 @@ alter table activities
 alter table activities
   add column if not exists day_date date;
 
+alter table activities
+  add column if not exists distance_km numeric(8, 1);
+
 -- Seed a default trip and attach existing activities
 insert into trips (id, name)
 select gen_random_uuid(), 'My Trip'

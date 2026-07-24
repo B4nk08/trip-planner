@@ -12,6 +12,7 @@ export type Activity = {
   location: string | null;
   activity: string | null;
   note: string | null;
+  distance_km: number | null;
   image_url: string | null;
   order_index: number;
   created_at?: string;
@@ -24,6 +25,7 @@ export type ActivityInput = {
   location: string;
   activity: string;
   note: string;
+  distance_km: number | null;
   image_url: string | null;
   order_index: number;
 };

@@ -491,6 +491,10 @@ export function TripBoard({ trip }: TripBoardProps) {
 
     if (formState.mode === "create") {
       const order_index = nextOrderIndex(activities, formState.dayDate);
+      const distance =
+        values.distance_km.trim() === ""
+          ? null
+          : Number(values.distance_km);
       const { error } = await supabase.from("activities").insert({
         trip_id: trip.id,
         day_date: formState.dayDate,
@@ -498,6 +502,10 @@ export function TripBoard({ trip }: TripBoardProps) {
         location: values.location || null,
         activity: values.activity || null,
         note: values.note || null,
+        distance_km:
+          distance != null && Number.isFinite(distance) && distance >= 0
+            ? distance
+            : null,
         image_url: imageUrl,
         order_index,
       });
@@ -512,6 +520,8 @@ export function TripBoard({ trip }: TripBoardProps) {
       return;
     }
 
+    const distance =
+      values.distance_km.trim() === "" ? null : Number(values.distance_km);
     const { error } = await supabase
       .from("activities")
       .update({
@@ -519,6 +529,10 @@ export function TripBoard({ trip }: TripBoardProps) {
         location: values.location || null,
         activity: values.activity || null,
         note: values.note || null,
+        distance_km:
+          distance != null && Number.isFinite(distance) && distance >= 0
+            ? distance
+            : null,
         image_url: imageUrl,
       })
       .eq("id", formState.activity.id);
