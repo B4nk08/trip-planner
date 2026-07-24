@@ -1,6 +1,13 @@
+export type Trip = {
+  id: string;
+  name: string;
+  created_at?: string;
+};
+
 export type Activity = {
   id: string;
-  day_number: number;
+  trip_id: string;
+  day_date: string;
   time: string | null;
   location: string | null;
   activity: string | null;
@@ -11,11 +18,30 @@ export type Activity = {
 };
 
 export type ActivityInput = {
-  day_number: number;
+  trip_id: string;
+  day_date: string;
   time: string;
   location: string;
   activity: string;
   note: string;
   image_url: string | null;
   order_index: number;
+};
+
+export type FundTransactionType = "receive" | "pay";
+
+export type FundTransaction = {
+  id: string;
+  trip_id: string;
+  type: FundTransactionType;
+  amount: number;
+  reason: string | null;
+  created_at?: string;
+};
+
+export type FundTransactionInput = {
+  trip_id: string;
+  type: FundTransactionType;
+  amount: number;
+  reason: string;
 };

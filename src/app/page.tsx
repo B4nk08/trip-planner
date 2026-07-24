@@ -1,10 +1,10 @@
 import { PasscodeGate } from "@/components/passcode-gate";
-import { TripBoard } from "@/components/trip-board";
+import { TripApp } from "@/components/trip-app";
 
 export default function Home() {
   return (
     <PasscodeGate>
-      <TripBoard />
+      <TripApp />
     </PasscodeGate>
   );
 }

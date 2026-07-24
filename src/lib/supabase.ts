@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import type { Activity } from "@/lib/types";
+import type { Activity, FundTransaction, Trip } from "@/lib/types";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -9,6 +9,15 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 type Database = {
   public: {
     Tables: {
+      trips: {
+        Row: Trip;
+        Insert: Omit<Trip, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<Omit<Trip, "id">> & { id?: string };
+        Relationships: [];
+      };
       activities: {
         Row: Activity;
         Insert: Omit<Activity, "id" | "created_at"> & {
@@ -16,6 +25,16 @@ type Database = {
           created_at?: string;
         };
         Update: Partial<Omit<Activity, "id">> & { id?: string };
+        Relationships: [];
+      };
+      fund_transactions: {
+        Row: FundTransaction;
+        Insert: Omit<FundTransaction, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+          reason?: string | null;
+        };
+        Update: Partial<Omit<FundTransaction, "id">> & { id?: string };
         Relationships: [];
       };
     };

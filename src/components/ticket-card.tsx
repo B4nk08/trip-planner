@@ -32,20 +32,26 @@ export function TicketCard({
   isDragging,
   showImage = true,
 }: TicketCardProps) {
-  const tone = TICKET_TONES[(activity.day_number - 1) % TICKET_TONES.length];
+  const daySeed = activity.day_date
+    .split("-")
+    .reduce((sum, part) => sum + Number(part), 0);
+  const tone = TICKET_TONES[daySeed % TICKET_TONES.length];
+  const hasImage = showImage && Boolean(activity.image_url);
 
   return (
-    <div style={style} className={cn("space-y-2", className)}>
-      <article
-        className={cn(
-          "ticket-card group relative flex overflow-hidden rounded-2xl border border-white/80 bg-gradient-to-r shadow-[0_10px_30px_-18px_rgba(80,110,130,0.45)]",
-          tone,
-          isDragging && "z-50 scale-[1.02] opacity-90 shadow-xl"
-        )}
-      >
+    <article
+      style={style}
+      className={cn(
+        "ticket-card group relative overflow-hidden rounded-2xl border border-white/80 bg-gradient-to-br shadow-[0_10px_30px_-18px_rgba(80,110,130,0.45)]",
+        tone,
+        isDragging && "z-50 scale-[1.02] opacity-90 shadow-xl",
+        className
+      )}
+    >
+      <div className="flex">
         <button
           type="button"
-          className="flex w-9 shrink-0 cursor-grab items-center justify-center border-r border-dashed border-[var(--line)] text-[var(--ink-muted)] touch-none active:cursor-grabbing"
+          className="flex w-10 shrink-0 cursor-grab items-center justify-center border-r border-dashed border-[var(--line)]/80 text-[var(--ink-muted)] touch-none active:cursor-grabbing sm:w-9"
           aria-label="Drag to reorder"
           {...dragHandleProps}
         >
@@ -53,22 +59,22 @@ export function TicketCard({
         </button>
 
         <div className="flex min-w-0 flex-1">
-          <div className="flex w-[4.75rem] shrink-0 flex-col items-center justify-center border-r border-dashed border-[var(--line)] px-2 py-3 text-center sm:w-24">
+          <div className="flex w-[4.25rem] shrink-0 flex-col items-center justify-center border-r border-dashed border-[var(--line)]/80 px-1.5 py-3.5 text-center sm:w-24 sm:px-2">
             <span className="text-[10px] font-medium tracking-[0.14em] text-[var(--ink-muted)] uppercase">
               Time
             </span>
-            <span className="mt-1 font-display text-lg leading-none text-[var(--ink)] sm:text-xl">
+            <span className="mt-1 font-display text-base leading-none text-[var(--ink)] sm:text-xl">
               {activity.time || "--:--"}
             </span>
           </div>
 
-          <div className="min-w-0 flex-1 px-3 py-3 sm:px-4">
-            <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1 px-2.5 py-3.5 sm:px-4">
+            <div className="flex items-start justify-between gap-1.5">
               <div className="min-w-0">
                 <p className="truncate text-[11px] tracking-wide text-[var(--ink-muted)] uppercase">
                   {activity.location || "No location specified"}
                 </p>
-                <h3 className="mt-0.5 truncate font-display text-lg text-[var(--ink)] sm:text-xl">
+                <h3 className="mt-0.5 truncate font-display text-base text-[var(--ink)] sm:text-xl">
                   {activity.activity || "Activity without a name"}
                 </h3>
               </div>
@@ -77,7 +83,7 @@ export function TicketCard({
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  className="shrink-0 text-[var(--ink-soft)] hover:bg-white/70 hover:text-[var(--ink)]"
+                  className="size-9 shrink-0 text-[var(--ink-soft)] hover:bg-white/70 hover:text-[var(--ink)] sm:size-7"
                   onClick={() => onEdit(activity)}
                   aria-label="Edit activity"
                 >
@@ -92,22 +98,27 @@ export function TicketCard({
             ) : null}
           </div>
         </div>
+      </div>
 
-        <div className="ticket-notch ticket-notch-top" aria-hidden />
-        <div className="ticket-notch ticket-notch-bottom" aria-hidden />
-      </article>
-
-      {showImage && activity.image_url ? (
-        <div className="overflow-hidden rounded-2xl border border-white/80 bg-white/55 shadow-[0_8px_24px_-18px_rgba(80,110,130,0.4)]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={activity.image_url}
-            alt={activity.activity || "Activity image"}
-            className="max-h-56 w-full object-cover"
-            loading="lazy"
-          />
-        </div>
+      {hasImage ? (
+        <>
+          <div className="ticket-perforation relative mx-3" aria-hidden>
+            <span className="ticket-notch ticket-notch-left" />
+            <span className="ticket-notch ticket-notch-right" />
+          </div>
+          <div className="px-2.5 pb-2.5 pt-1 sm:px-3 sm:pb-3">
+            <div className="overflow-hidden rounded-xl">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={activity.image_url!}
+                alt={activity.activity || "Activity image"}
+                className="max-h-52 w-full object-cover sm:max-h-56"
+                loading="lazy"
+              />
+            </div>
+          </div>
+        </>
       ) : null}
-    </div>
+    </article>
   );
 }

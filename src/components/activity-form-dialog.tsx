@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { formatDayHeading } from "@/lib/activities";
 import type { Activity } from "@/lib/types";
 
 export type ActivityFormValues = {
@@ -39,7 +40,7 @@ export type ActivityFormValues = {
 type ActivityFormDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  dayNumber: number;
+  dayDate: string;
   initial?: Activity | null;
   onSave: (values: ActivityFormValues) => Promise<void>;
   onDelete?: () => Promise<void>;
@@ -58,13 +59,13 @@ function toValues(initial?: Activity | null): ActivityFormValues {
 }
 
 function ActivityFormFields({
-  dayNumber,
+  dayDate,
   initial,
   onOpenChange,
   onSave,
   onDelete,
 }: {
-  dayNumber: number;
+  dayDate: string;
   initial?: Activity | null;
   onOpenChange: (open: boolean) => void;
   onSave: (values: ActivityFormValues) => Promise<void>;
@@ -129,16 +130,18 @@ function ActivityFormFields({
       <form onSubmit={handleSubmit}>
         <DialogHeader className="border-b border-[var(--line)] px-6 py-5">
           <DialogTitle className="font-display text-2xl text-[var(--ink)]">
-            {isEdit ? "แก้ไขกิจกรรม" : "เพิ่มกิจกรรม"}
+            {isEdit ? "Edit activity" : "Add activity"}
           </DialogTitle>
           <DialogDescription className="text-[var(--ink-soft)]">
-            Day {dayNumber}
+            {formatDayHeading(dayDate)}
           </DialogDescription>
         </DialogHeader>
 
         <div className="max-h-[65vh] space-y-4 overflow-y-auto px-6 py-5">
           <div className="space-y-2">
-            <Label htmlFor="time">Time</Label>
+            <Label htmlFor="time">
+              Time <span className="font-normal text-[var(--ink-muted)]">(optional)</span>
+            </Label>
             <Input
               id="time"
               type="time"
@@ -169,7 +172,7 @@ function ActivityFormFields({
               onChange={(e) =>
                 setValues((v) => ({ ...v, activity: e.target.value }))
               }
-              placeholder="เช่น Check-in / Dinner"
+              placeholder="e.g. Check-in / Dinner"
               required
               className="rounded-xl bg-white/80"
             />
@@ -203,7 +206,7 @@ function ActivityFormFields({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={previewUrl}
-                  alt="Example image"
+                  alt="Activity preview"
                   className="max-h-48 w-full object-cover"
                 />
                 <Button
@@ -282,7 +285,7 @@ function ActivityFormFields({
         <AlertDialogContent className="rounded-3xl border-white/70 bg-[#fffcfa]">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-display text-xl">
-                Delete this activity?
+              Delete this activity?
             </AlertDialogTitle>
             <AlertDialogDescription>
               Deleting this activity cannot be undone
@@ -306,12 +309,12 @@ function ActivityFormFields({
 export function ActivityFormDialog({
   open,
   onOpenChange,
-  dayNumber,
+  dayDate,
   initial,
   onSave,
   onDelete,
 }: ActivityFormDialogProps) {
-  const formKey = initial?.id ?? `create-${dayNumber}-${open}`;
+  const formKey = initial?.id ?? `create-${dayDate}-${open}`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -319,7 +322,7 @@ export function ActivityFormDialog({
         {open ? (
           <ActivityFormFields
             key={formKey}
-            dayNumber={dayNumber}
+            dayDate={dayDate}
             initial={initial}
             onOpenChange={onOpenChange}
             onSave={onSave}

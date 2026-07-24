@@ -14,10 +14,10 @@ export function getPathFromPublicUrl(url: string | null | undefined) {
 
 export async function uploadActivityImage(file: File) {
   if (!ALLOWED_TYPES.includes(file.type)) {
-    throw new Error("รองรับเฉพาะไฟล์ JPG, PNG, WEBP, GIF");
+    throw new Error("Only JPG, PNG, WEBP, and GIF are supported");
   }
   if (file.size > MAX_FILE_BYTES) {
-    throw new Error("ไฟล์ใหญ่เกิน 3 MB");
+    throw new Error("File must be 3 MB or smaller");
   }
 
   const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
@@ -32,7 +32,7 @@ export async function uploadActivityImage(file: File) {
     });
 
   if (error) {
-    throw new Error(error.message || "อัปโหลดรูปไม่สำเร็จ");
+    throw new Error(error.message || "Failed to upload image");
   }
 
   const { data } = supabase.storage

@@ -100,15 +100,15 @@ export function PasscodeGate({ children }: PasscodeGateProps) {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--pastel-sky)_0%,_transparent_55%),radial-gradient(ellipse_at_bottom_right,_var(--pastel-blush)_0%,_transparent_50%),radial-gradient(ellipse_at_bottom_left,_var(--pastel-mint)_0%,_transparent_45%)]" />
       <div className="paper-grain pointer-events-none absolute inset-0 opacity-40" />
 
-      <div className="relative w-full max-w-sm animate-fade-up rounded-3xl border border-white/70 bg-white/70 p-8 shadow-[0_20px_60px_-24px_rgba(90,120,140,0.35)] backdrop-blur-md">
+      <div className="relative w-full max-w-sm animate-fade-up rounded-3xl border border-white/70 bg-white/70 p-5 shadow-[0_20px_60px_-24px_rgba(90,120,140,0.35)] backdrop-blur-md sm:p-8">
         <p className="font-display text-3xl tracking-tight text-[var(--ink)]">
-          Trip Khao Yai
+          TripPlanner
         </p>
         <p className="mt-2 text-sm leading-relaxed text-[var(--ink-soft)]">
           Enter the passcode to access the trip planner
         </p>
 
-        <div className="mt-8 flex justify-between gap-2" onPaste={handlePaste}>
+        <div className="mt-8 flex justify-between gap-1.5 sm:gap-2" onPaste={handlePaste}>
           {digits.map((digit, index) => (
             <input
               key={index}
@@ -122,7 +122,7 @@ export function PasscodeGate({ children }: PasscodeGateProps) {
               value={digit}
               onChange={(e) => handleChange(index, e.target.value)}
               onKeyDown={(e) => handleKeyDown(index, e)}
-              className={`h-12 w-10 rounded-xl border bg-white/80 text-center font-display text-xl text-[var(--ink)] outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/30 sm:h-14 sm:w-11 ${
+              className={`h-12 w-9 rounded-xl border bg-white/80 text-center font-display text-xl text-[var(--ink)] outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/30 sm:h-14 sm:w-11 ${
                 error
                   ? "border-rose-300 animate-shake"
                   : "border-[var(--line)]"

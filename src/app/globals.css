@@ -83,14 +83,14 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.9rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #f7faf8;
+  --sidebar-foreground: #3a4650;
+  --sidebar-primary: #7fa8a0;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e8f1ee;
+  --sidebar-accent-foreground: #3a4650;
+  --sidebar-border: #d7e0e6;
+  --sidebar-ring: #7fa8a0;
 }
 
 @layer base {
@@ -99,6 +99,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-tap-highlight-color: transparent;
   }
   html {
     @apply font-sans;
@@ -119,28 +120,37 @@
   position: relative;
 }
 
+.ticket-perforation {
+  height: 1px;
+  background-image: linear-gradient(
+    to right,
+    transparent 0,
+    transparent 4px,
+    color-mix(in srgb, var(--line) 85%, transparent) 4px,
+    color-mix(in srgb, var(--line) 85%, transparent) 10px
+  );
+  background-size: 14px 1px;
+  background-repeat: repeat-x;
+  background-position: center;
+}
+
 .ticket-notch {
   position: absolute;
-  right: 5.5rem;
+  top: 50%;
   width: 14px;
   height: 14px;
   border-radius: 9999px;
   background: color-mix(in srgb, var(--background) 88%, white);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+  transform: translateY(-50%);
 }
 
-.ticket-notch-top {
-  top: -7px;
+.ticket-notch-left {
+  left: -7px;
 }
 
-.ticket-notch-bottom {
-  bottom: -7px;
-}
-
-@media (min-width: 640px) {
-  .ticket-notch {
-    right: 6.5rem;
-  }
+.ticket-notch-right {
+  right: -7px;
 }
 
 @keyframes fade-up {

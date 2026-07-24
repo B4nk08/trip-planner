@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   closestCorners,
   useSensor,
   useSensors,
@@ -13,15 +14,22 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { Plus } from "lucide-react";
+import { CalendarIcon, CalendarDays, ChevronRight, Plus, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import {
   ActivityFormDialog,
   type ActivityFormValues,
 } from "@/components/activity-form-dialog";
 import { DaySection } from "@/components/day-section";
+import { FundPanel } from "@/components/fund-panel";
 import { TicketCard } from "@/components/ticket-card";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,47 +40,76 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+import { fundBalance, formatMoney } from "@/lib/fund";
 import {
-  getDayNumbers,
+  formatDayHeading,
+  getDayDates,
   groupByDay,
   nextOrderIndex,
+  toDateKey,
+  todayKey,
 } from "@/lib/activities";
 import { deleteActivityImage, uploadActivityImage } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
-import type { Activity } from "@/lib/types";
+import type { Activity, FundTransaction, Trip } from "@/lib/types";
 
 type FormState =
-  | { mode: "create"; dayNumber: number }
+  | { mode: "create"; dayDate: string }
   | { mode: "edit"; activity: Activity }
   | null;
 
-function parseDayId(id: string | number): number | null {
+function parseDayId(id: string | number): string | null {
   if (typeof id === "string" && id.startsWith("day-")) {
-    const n = Number(id.replace("day-", ""));
-    return Number.isFinite(n) ? n : null;
+    return id.slice(4);
   }
   return null;
 }
 
-export function TripBoard() {
+type TripBoardProps = {
+  trip: Trip;
+};
+
+type BoardView = "activities" | "fund";
+
+export function TripBoard({ trip }: TripBoardProps) {
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [extraDays, setExtraDays] = useState<number[]>([]);
+  const [transactions, setTransactions] = useState<FundTransaction[]>([]);
+  const [extraDays, setExtraDays] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [formState, setFormState] = useState<FormState>(null);
-  const [dayToDelete, setDayToDelete] = useState<number | null>(null);
+  const [dayToDelete, setDayToDelete] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [addDayOpen, setAddDayOpen] = useState(false);
+  const [pendingDay, setPendingDay] = useState<Date | undefined>(undefined);
+  const [view, setView] = useState<BoardView>("activities");
   const activitiesRef = useRef(activities);
 
   useEffect(() => {
     activitiesRef.current = activities;
   }, [activities]);
 
+  useEffect(() => {
+    setExtraDays([]);
+    setFormState(null);
+    setDayToDelete(null);
+    setView("activities");
+    setLoading(true);
+  }, [trip.id]);
+
+  const balance = useMemo(() => fundBalance(transactions), [transactions]);
+
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 180, tolerance: 8 },
+    })
   );
 
-  const dayNumbers = useMemo(
-    () => getDayNumbers(activities, extraDays),
+  const dayDates = useMemo(
+    () => getDayDates(activities, extraDays),
     [activities, extraDays]
   );
 
@@ -87,38 +124,77 @@ export function TripBoard() {
     const { data, error } = await supabase
       .from("activities")
       .select("*")
-      .order("day_number", { ascending: true })
+      .eq("trip_id", trip.id)
+      .order("day_date", { ascending: true })
       .order("order_index", { ascending: true });
 
     if (error) {
-      toast.error("Failed to load data");
+      toast.error("Failed to load activities");
       setLoading(false);
       return;
     }
 
     setActivities((data as Activity[]) ?? []);
     setLoading(false);
-  }, []);
+  }, [trip.id]);
+
+  const loadTransactions = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("fund_transactions")
+      .select("*")
+      .eq("trip_id", trip.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      toast.error("Failed to load fund");
+      return;
+    }
+
+    setTransactions(
+      ((data as FundTransaction[]) ?? []).map((tx) => ({
+        ...tx,
+        amount: Number(tx.amount),
+      }))
+    );
+  }, [trip.id]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function fetchInitial() {
-      const { data, error } = await supabase
-        .from("activities")
-        .select("*")
-        .order("day_number", { ascending: true })
-        .order("order_index", { ascending: true });
+      const [acts, funds] = await Promise.all([
+        supabase
+          .from("activities")
+          .select("*")
+          .eq("trip_id", trip.id)
+          .order("day_date", { ascending: true })
+          .order("order_index", { ascending: true }),
+        supabase
+          .from("fund_transactions")
+          .select("*")
+          .eq("trip_id", trip.id)
+          .order("created_at", { ascending: false }),
+      ]);
 
       if (cancelled) return;
 
-      if (error) {
-        toast.error("Failed to load data");
-        setLoading(false);
-        return;
+      if (acts.error) {
+        toast.error("Failed to load activities");
+      } else {
+        setActivities((acts.data as Activity[]) ?? []);
       }
 
-      setActivities((data as Activity[]) ?? []);
+      if (funds.error) {
+        toast.error("Failed to load fund");
+      } else {
+        setTransactions(
+          ((funds.data as FundTransaction[]) ?? []).map((tx) => ({
+            ...tx,
+            amount: Number(tx.amount),
+          }))
+        );
+      }
+
       setLoading(false);
     }
 
@@ -126,16 +202,33 @@ export function TripBoard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [trip.id]);
 
   useEffect(() => {
     const channel = supabase
-      .channel("activities-realtime")
+      .channel(`trip-${trip.id}-realtime`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "activities" },
+        {
+          event: "*",
+          schema: "public",
+          table: "activities",
+          filter: `trip_id=eq.${trip.id}`,
+        },
         () => {
           void loadActivities();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "fund_transactions",
+          filter: `trip_id=eq.${trip.id}`,
+        },
+        () => {
+          void loadTransactions();
         }
       )
       .subscribe();
@@ -143,14 +236,16 @@ export function TripBoard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [loadActivities]);
+  }, [trip.id, loadActivities, loadTransactions]);
 
-  async function persistOrder(updates: { id: string; day_number: number; order_index: number }[]) {
+  async function persistOrder(
+    updates: { id: string; day_date: string; order_index: number }[]
+  ) {
     const results = await Promise.all(
       updates.map((u) =>
         supabase
           .from("activities")
-          .update({ day_number: u.day_number, order_index: u.order_index })
+          .update({ day_date: u.day_date, order_index: u.order_index })
           .eq("id", u.id)
       )
     );
@@ -165,11 +260,11 @@ export function TripBoard() {
   function findContainer(
     list: Activity[],
     id: string | number
-  ): number | null {
+  ): string | null {
     const asDay = parseDayId(id);
     if (asDay !== null) return asDay;
     const item = list.find((a) => a.id === id);
-    return item?.day_number ?? null;
+    return item?.day_date ?? null;
   }
 
   function handleDragStart(event: DragStartEvent) {
@@ -198,7 +293,7 @@ export function TripBoard() {
 
       const without = prev.filter((a) => a.id !== active.id);
       const overItems = without
-        .filter((a) => a.day_number === overContainer)
+        .filter((a) => a.day_date === overContainer)
         .sort((a, b) => a.order_index - b.order_index);
 
       const overIndex = overItems.findIndex((a) => a.id === over.id);
@@ -211,7 +306,7 @@ export function TripBoard() {
 
       const moved: Activity = {
         ...activeItem,
-        day_number: overContainer,
+        day_date: overContainer,
       };
 
       const nextOver = [...overItems];
@@ -223,13 +318,13 @@ export function TripBoard() {
       }));
 
       const sourceRemaining = without
-        .filter((a) => a.day_number === activeContainer)
+        .filter((a) => a.day_date === activeContainer)
         .sort((a, b) => a.order_index - b.order_index)
         .map((item, index) => ({ ...item, order_index: index }));
 
       const rest = without.filter(
         (a) =>
-          a.day_number !== activeContainer && a.day_number !== overContainer
+          a.day_date !== activeContainer && a.day_date !== overContainer
       );
 
       return [...rest, ...sourceRemaining, ...reindexedOver];
@@ -254,7 +349,7 @@ export function TripBoard() {
 
     const overDay =
       parseDayId(over.id) ??
-      current.find((a) => a.id === over.id)?.day_number ??
+      current.find((a) => a.id === over.id)?.day_date ??
       null;
 
     if (overDay === null) {
@@ -263,11 +358,11 @@ export function TripBoard() {
     }
 
     let nextActivities = current;
-    const sourceDay = activeItem.day_number;
+    const sourceDay = activeItem.day_date;
 
     if (sourceDay === overDay) {
       const items = current
-        .filter((a) => a.day_number === sourceDay)
+        .filter((a) => a.day_date === sourceDay)
         .sort((a, b) => a.order_index - b.order_index);
       const oldIndex = items.findIndex((a) => a.id === active.id);
       const newIndex = items.findIndex((a) => a.id === over.id);
@@ -277,7 +372,7 @@ export function TripBoard() {
           (item, index) => ({ ...item, order_index: index })
         );
         nextActivities = [
-          ...current.filter((a) => a.day_number !== sourceDay),
+          ...current.filter((a) => a.day_date !== sourceDay),
           ...reordered,
         ];
         setActivities(nextActivities);
@@ -288,10 +383,10 @@ export function TripBoard() {
 
     const touchedDays = new Set([sourceDay, overDay]);
     const updates = nextActivities
-      .filter((a) => touchedDays.has(a.day_number))
+      .filter((a) => touchedDays.has(a.day_date))
       .map((a) => ({
         id: a.id,
-        day_number: a.day_number,
+        day_date: a.day_date,
         order_index: a.order_index,
       }));
 
@@ -329,9 +424,10 @@ export function TripBoard() {
     }
 
     if (formState.mode === "create") {
-      const order_index = nextOrderIndex(activities, formState.dayNumber);
+      const order_index = nextOrderIndex(activities, formState.dayDate);
       const { error } = await supabase.from("activities").insert({
-        day_number: formState.dayNumber,
+        trip_id: trip.id,
+        day_date: formState.dayDate,
         time: values.time || null,
         location: values.location || null,
         activity: values.activity || null,
@@ -392,23 +488,30 @@ export function TripBoard() {
     await loadActivities();
   }
 
-  function handleAddDay() {
-    const maxDay = Math.max(0, ...dayNumbers);
-    const next = maxDay + 1;
-    setExtraDays((prev) => [...prev, next]);
-      toast.success(`Added Day ${next}`);
+  function handleConfirmAddDay() {
+    if (!pendingDay) return;
+    const key = toDateKey(pendingDay);
+    if (dayDates.includes(key)) {
+      toast.error("That day is already on the board");
+      return;
+    }
+    setExtraDays((prev) => [...prev, key]);
+    setAddDayOpen(false);
+    setPendingDay(undefined);
+    toast.success(`Added ${formatDayHeading(key)}`);
   }
 
   async function handleDeleteDay() {
     if (dayToDelete === null) return;
     const day = dayToDelete;
 
-    const toDelete = activities.filter((a) => a.day_number === day);
+    const toDelete = activities.filter((a) => a.day_date === day);
     if (toDelete.length > 0) {
       const { error } = await supabase
         .from("activities")
         .delete()
-        .eq("day_number", day);
+        .eq("trip_id", trip.id)
+        .eq("day_date", day);
 
       if (error) {
         toast.error("Failed to delete day");
@@ -421,68 +524,129 @@ export function TripBoard() {
       );
     }
 
-    const higher = activities.filter((a) => a.day_number > day);
-    if (higher.length > 0) {
-      const results = await Promise.all(
-        higher.map((a) =>
-          supabase
-            .from("activities")
-            .update({ day_number: a.day_number - 1 })
-            .eq("id", a.id)
-        )
-      );
-      if (results.some((r) => r.error)) {
-        toast.error("Failed to reorder days");
-      }
-    }
-
-    setExtraDays((prev) =>
-      prev
-        .filter((d) => d !== day)
-        .map((d) => (d > day ? d - 1 : d))
-    );
+    setExtraDays((prev) => prev.filter((d) => d !== day));
     setDayToDelete(null);
-    toast.success(`Day ${day} deleted`);
+    toast.success(`${formatDayHeading(day)} deleted`);
     await loadActivities();
   }
 
-  const formDayNumber =
+  const formDayDate =
     formState?.mode === "create"
-      ? formState.dayNumber
+      ? formState.dayDate
       : formState?.mode === "edit"
-        ? formState.activity.day_number
-        : 1;
+        ? formState.activity.day_date
+        : todayKey();
 
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-svh flex-1">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--pastel-sky)_0%,_transparent_50%),radial-gradient(ellipse_at_bottom_right,_var(--pastel-blush)_0%,_transparent_45%),radial-gradient(ellipse_at_bottom_left,_var(--pastel-mint)_0%,_transparent_40%)]" />
       <div className="paper-grain pointer-events-none absolute inset-0 opacity-35" />
 
-      <div className="relative mx-auto max-w-2xl px-4 pb-16 pt-8 sm:px-6 sm:pt-12">
-        <header className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="animate-fade-up">
-            <p className="text-[11px] font-medium tracking-[0.2em] text-[var(--ink-muted)] uppercase">
+      <header className="sticky top-0 z-20 border-b border-white/60 bg-[#f4f7f5]/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
+        <div className="flex h-14 items-center gap-2 px-3 sm:h-16 sm:px-4">
+          <SidebarTrigger
+            className="-ml-0.5 size-8 shrink-0"
+            aria-label="Toggle trips sidebar"
+          />
+          <Separator
+            orientation="vertical"
+            className="mr-1 data-[orientation=vertical]:h-4"
+          />
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 text-sm">
+            <span className="hidden shrink-0 text-[var(--ink-muted)] sm:inline">
               TripPlanner
-            </p>
-            <h1 className="font-display text-4xl tracking-tight text-[var(--ink)] sm:text-5xl">
-              Trip Khao Yai
+            </span>
+            <ChevronRight
+              className="hidden size-3.5 shrink-0 text-[var(--ink-muted)] sm:block"
+              aria-hidden
+            />
+            <h1 className="truncate font-medium text-[var(--ink)]">
+              {trip.name}
             </h1>
-            <p className="mt-2 max-w-md text-sm leading-relaxed text-[var(--ink-soft)]">
-              Trip planner for Khao Yai National Park
-            </p>
           </div>
+          {view === "activities" ? (
+            <Popover open={addDayOpen} onOpenChange={setAddDayOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8 shrink-0 rounded-full bg-[var(--accent)] px-3 text-white hover:bg-[var(--accent-deep)]"
+                >
+                  <Plus className="size-4" />
+                  <span className="hidden sm:inline">Add day</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                sideOffset={8}
+                className="w-[min(100vw-1.5rem,20rem)] rounded-3xl border-white/70 bg-[#fffcfa] p-2 sm:w-auto sm:p-3"
+              >
+                <Calendar
+                  mode="single"
+                  selected={pendingDay}
+                  onSelect={setPendingDay}
+                  disabled={(date) => dayDates.includes(toDateKey(date))}
+                  className="mx-auto"
+                />
+                <Button
+                  type="button"
+                  className="mt-2 w-full rounded-full bg-[var(--accent)] text-white hover:bg-[var(--accent-deep)]"
+                  disabled={!pendingDay}
+                  onClick={handleConfirmAddDay}
+                >
+                  <CalendarIcon className="size-4" />
+                  Add selected day
+                </Button>
+              </PopoverContent>
+            </Popover>
+          ) : (
+            <p className="max-w-[40%] shrink-0 truncate text-right font-display text-sm text-[var(--accent-deep)] sm:max-w-none">
+              {formatMoney(balance)}
+            </p>
+          )}
+        </div>
 
-          <Button
+        <nav className="mx-auto flex max-w-2xl gap-1 px-3 pb-2.5 sm:px-6 sm:pb-3">
+          <button
             type="button"
-            className="animate-fade-up rounded-full bg-[var(--accent)] text-white hover:bg-[var(--accent-deep)]"
-            onClick={handleAddDay}
+            onClick={() => setView("activities")}
+            className={cn(
+              "inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-sm font-medium transition sm:gap-2 sm:px-3",
+              view === "activities"
+                ? "bg-[var(--accent)] text-white shadow-sm"
+                : "bg-white/55 text-[var(--ink-soft)] hover:bg-white/90"
+            )}
           >
-            <Plus className="size-4" />
-            Add new day
-          </Button>
-        </header>
+            <CalendarDays className="size-4 shrink-0" />
+            <span>Activities</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("fund")}
+            className={cn(
+              "inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-sm font-medium transition sm:gap-2 sm:px-3",
+              view === "fund"
+                ? "bg-[var(--accent)] text-white shadow-sm"
+                : "bg-white/55 text-[var(--ink-soft)] hover:bg-white/90"
+            )}
+          >
+            <Wallet className="size-4 shrink-0" />
+            <span className="sm:hidden">Fund</span>
+            <span className="hidden sm:inline">Shared fund</span>
+          </button>
+        </nav>
+      </header>
 
-        {loading ? (
+      <div className="relative mx-auto max-w-2xl px-3 pb-[max(4rem,env(safe-area-inset-bottom))] pt-5 sm:px-6 sm:pt-8">
+        {view === "fund" ? (
+          <div className="animate-fade-up">
+            <FundPanel
+              tripId={trip.id}
+              transactions={transactions}
+              onChanged={loadTransactions}
+            />
+          </div>
+        ) : loading ? (
           <div className="space-y-4">
             {[1, 2].map((i) => (
               <div
@@ -490,6 +654,15 @@ export function TripBoard() {
                 className="h-36 animate-pulse rounded-3xl bg-white/50"
               />
             ))}
+          </div>
+        ) : dayDates.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-[var(--line)] bg-white/50 px-6 py-16 text-center">
+            <p className="font-display text-2xl text-[var(--ink)]">
+              No days yet
+            </p>
+            <p className="mt-2 text-sm text-[var(--ink-soft)]">
+              Pick a date to start planning this trip
+            </p>
           </div>
         ) : (
           <DndContext
@@ -500,13 +673,13 @@ export function TripBoard() {
             onDragEnd={handleDragEnd}
           >
             <div className="space-y-10">
-              {dayNumbers.map((day) => (
+              {dayDates.map((day) => (
                 <DaySection
                   key={day}
-                  dayNumber={day}
+                  dayDate={day}
                   activities={byDay.get(day) ?? []}
-                  onAdd={(dayNumber) =>
-                    setFormState({ mode: "create", dayNumber })
+                  onAdd={(dayDate) =>
+                    setFormState({ mode: "create", dayDate })
                   }
                   onEdit={(activity) =>
                     setFormState({ mode: "edit", activity })
@@ -536,7 +709,7 @@ export function TripBoard() {
         onOpenChange={(open) => {
           if (!open) setFormState(null);
         }}
-        dayNumber={formDayNumber}
+        dayDate={formDayDate}
         initial={formState?.mode === "edit" ? formState.activity : null}
         onSave={handleSave}
         onDelete={
@@ -553,10 +726,10 @@ export function TripBoard() {
         <AlertDialogContent className="rounded-3xl border-white/70 bg-[#fffcfa]">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-display text-xl">
-              Delete all activities for Day {dayToDelete}?
+              Delete {dayToDelete ? formatDayHeading(dayToDelete) : "this day"}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              All activities for this day will be deleted, and the next day will be renumbered automatically
+              All activities for this day will be permanently deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
