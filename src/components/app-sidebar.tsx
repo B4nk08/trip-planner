@@ -62,7 +62,6 @@ import {
 } from "@/lib/activities";
 import type { AppSection, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 type AppSidebarProps = {
   trips: Trip[];
@@ -103,7 +102,6 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const { partner, logout } = usePartnerSession();
   const { isMobile, setOpenMobile, state } = useSidebar();
-  const isNarrow = useIsMobile();
   const collapsed = state === "collapsed" && !isMobile;
   const [nameDialog, setNameDialog] = useState<
     | { mode: "create" }
@@ -134,12 +132,12 @@ export function AppSidebar({
     [trips]
   );
 
-  const rangeLabel = useMemo(() => {
-    if (!dateRange?.from) return "Select travel dates";
-    const fromKey = toDateKey(dateRange.from);
-    if (!dateRange.to) return `${formatShortDate(fromKey)} – …`;
-    return `${formatShortDate(fromKey)} – ${formatShortDate(toDateKey(dateRange.to))}`;
-  }, [dateRange]);
+  const departureLabel = dateRange?.from
+    ? formatShortDate(toDateKey(dateRange.from))
+    : "Departure";
+  const returnLabel = dateRange?.to
+    ? formatShortDate(toDateKey(dateRange.to))
+    : "Return";
 
   function handleSelectTrip(tripId: string) {
     onSectionChange("trips");
@@ -161,7 +159,7 @@ export function AppSidebar({
   function openCreate() {
     setNameValue("");
     setInitialFund("");
-    setDateRange({ from: today, to: undefined });
+    setDateRange(undefined);
     setRangeOpen(false);
     setNameDialog({ mode: "create" });
   }
@@ -509,32 +507,50 @@ export function AppSidebar({
       >
         <DialogContent
           className={cn(
-            "rounded-3xl border-white/70 bg-[#fffcfa]",
-            nameDialog?.mode === "create"
-              ? "sm:max-w-[min(92vw,44rem)]"
-              : "sm:max-w-sm"
+            "gap-0 overflow-visible rounded-[1.75rem] border-white/70 bg-[#fffcfa] p-0 sm:max-w-md",
+            nameDialog?.mode === "create" && "sm:max-w-lg"
           )}
+          onPointerDownOutside={(e) => {
+            const target = e.target as HTMLElement | null;
+            if (target?.closest('[data-slot="popover-content"]')) {
+              e.preventDefault();
+            }
+          }}
+          onInteractOutside={(e) => {
+            const target = e.target as HTMLElement | null;
+            if (target?.closest('[data-slot="popover-content"]')) {
+              e.preventDefault();
+            }
+          }}
+          onFocusOutside={(e) => {
+            const target = e.target as HTMLElement | null;
+            if (target?.closest('[data-slot="popover-content"]')) {
+              e.preventDefault();
+            }
+          }}
         >
-          <DialogHeader>
-            <DialogTitle className="font-display text-xl">
+          <DialogHeader className="space-y-1.5 px-6 pt-6 pb-4 sm:px-8 sm:pt-8">
+            <DialogTitle className="font-display text-3xl">
               {nameDialog?.mode === "rename" ? "Rename trip" : "New trip"}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-base text-[var(--ink-soft)]">
               {nameDialog?.mode === "rename"
                 ? "Update the trip name"
-                : "Pick dates, set the starting fund, and name your trip"}
+                : "Name it, pick the days, set the fund"}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
+          <div className="space-y-6 px-6 pb-2 sm:px-8">
             <div className="space-y-2">
-              <Label htmlFor="trip-name">Trip name</Label>
+              <Label htmlFor="trip-name" className="text-sm">
+                Trip name
+              </Label>
               <Input
                 id="trip-name"
                 value={nameValue}
                 onChange={(e) => setNameValue(e.target.value)}
-                placeholder="My Trip"
-                className="rounded-xl"
+                placeholder="Summer in Japan"
+                className="h-12 rounded-2xl border-[var(--line)] bg-white/90 text-base"
                 autoFocus={nameDialog?.mode === "rename"}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && nameDialog?.mode === "rename") {
@@ -547,29 +563,62 @@ export function AppSidebar({
             {nameDialog?.mode === "create" ? (
               <>
                 <div className="space-y-2">
-                  <Label>Travel dates</Label>
-                  <Popover open={rangeOpen} onOpenChange={setRangeOpen}>
+                  <Label className="text-sm">Travel dates</Label>
+                  <Popover modal open={rangeOpen} onOpenChange={setRangeOpen}>
                     <PopoverTrigger asChild>
-                      <Button
+                      <button
                         type="button"
-                        variant="outline"
                         className={cn(
-                          "h-10 w-full justify-start rounded-xl border-[var(--line)] bg-white/80 font-normal",
-                          !dateRange?.from && "text-[var(--ink-muted)]"
+                          "grid w-full grid-cols-2 gap-3 rounded-2xl text-left transition",
+                          "outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40"
                         )}
                       >
-                        <CalendarIcon className="size-4 text-[var(--accent)]" />
-                        {rangeLabel}
-                      </Button>
+                        <div
+                          className={cn(
+                            "rounded-2xl px-4 py-3.5 ring-1 ring-[var(--line)]",
+                            dateRange?.from
+                              ? "bg-[var(--pastel-mint)]/70"
+                              : "bg-white/90"
+                          )}
+                        >
+                          <p className="text-[11px] tracking-[0.14em] text-[var(--ink-muted)] uppercase">
+                            From
+                          </p>
+                          <p className="mt-1 truncate text-base font-medium text-[var(--ink)]">
+                            {departureLabel}
+                          </p>
+                        </div>
+                        <div
+                          className={cn(
+                            "rounded-2xl px-4 py-3.5 ring-1 ring-[var(--line)]",
+                            dateRange?.to
+                              ? "bg-[var(--pastel-mint)]/70"
+                              : "bg-white/90"
+                          )}
+                        >
+                          <p className="text-[11px] tracking-[0.14em] text-[var(--ink-muted)] uppercase">
+                            To
+                          </p>
+                          <p className="mt-1 truncate text-base font-medium text-[var(--ink)]">
+                            {returnLabel}
+                          </p>
+                        </div>
+                      </button>
                     </PopoverTrigger>
                     <PopoverContent
-                      align="start"
-                      sideOffset={8}
-                      className="w-auto rounded-3xl border-white/70 bg-[#fffcfa] p-3 shadow-xl"
+                      align="center"
+                      side="bottom"
+                      sideOffset={10}
+                      className="z-[100] w-auto rounded-3xl border-white/80 bg-[#fffcfa] p-4 shadow-xl"
+                      onOpenAutoFocus={(e) => e.preventDefault()}
                     >
+                      <div className="mb-2 flex items-center gap-2 px-1 text-sm text-[var(--ink-muted)]">
+                        <CalendarIcon className="size-4 text-[var(--accent)]" />
+                        Tap departure, then return
+                      </div>
                       <Calendar
                         mode="range"
-                        numberOfMonths={isNarrow ? 1 : 2}
+                        numberOfMonths={1}
                         selected={dateRange}
                         onSelect={(range) => {
                           setDateRange(range);
@@ -578,47 +627,48 @@ export function AppSidebar({
                           }
                         }}
                         disabled={{ before: today }}
-                        defaultMonth={today}
-                        className="rounded-2xl bg-[#fffcfa]"
+                        defaultMonth={dateRange?.from ?? today}
+                        showOutsideDays={false}
+                        className="[--cell-size:2.75rem]"
                       />
                     </PopoverContent>
                   </Popover>
-                  <p className="text-xs text-[var(--ink-muted)]">
-                    From today onward — departure through return. Empty day
-                    boards are created automatically.
-                  </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="trip-fund">Starting shared fund</Label>
-                  <Input
-                    id="trip-fund"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    inputMode="decimal"
-                    value={initialFund}
-                    onChange={(e) => setInitialFund(e.target.value)}
-                    placeholder="e.g. 5000"
-                    className="rounded-xl"
-                    required
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void handleSaveName();
-                    }}
-                  />
-                  <p className="text-xs text-[var(--ink-muted)]">
-                    This becomes the trip fund balance. You can receive or pay
-                    later.
-                  </p>
+                  <Label htmlFor="trip-fund" className="text-sm">
+                    Starting fund
+                  </Label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-base text-[var(--ink-muted)]">
+                      ฿
+                    </span>
+                    <Input
+                      id="trip-fund"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      inputMode="decimal"
+                      value={initialFund}
+                      onChange={(e) => setInitialFund(e.target.value)}
+                      placeholder="5000"
+                      className="h-12 rounded-2xl border-[var(--line)] bg-white/90 pl-9 text-base"
+                      required
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") void handleSaveName();
+                      }}
+                    />
+                  </div>
                 </div>
               </>
             ) : null}
           </div>
-          <DialogFooter>
+
+          <DialogFooter className="mt-4 gap-3 border-t-0 bg-transparent px-6 pt-1 pb-6 sm:justify-stretch sm:px-8 sm:pb-8">
             <Button
               type="button"
               variant="outline"
-              className="rounded-full"
+              className="h-12 flex-1 rounded-full text-base"
               onClick={() => setNameDialog(null)}
               disabled={saving}
             >
@@ -626,7 +676,7 @@ export function AppSidebar({
             </Button>
             <Button
               type="button"
-              className="rounded-full bg-[var(--accent)] text-white hover:bg-[var(--accent-deep)]"
+              className="h-12 flex-1 rounded-full bg-[var(--accent)] text-base text-white hover:bg-[var(--accent-deep)]"
               onClick={() => void handleSaveName()}
               disabled={
                 saving ||
@@ -638,7 +688,11 @@ export function AppSidebar({
                     !dateRange?.to))
               }
             >
-              {saving ? "Saving..." : "Create trip"}
+              {saving
+                ? "Saving…"
+                : nameDialog?.mode === "rename"
+                  ? "Save"
+                  : "Create trip"}
             </Button>
           </DialogFooter>
         </DialogContent>
