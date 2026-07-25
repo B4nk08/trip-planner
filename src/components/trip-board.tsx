@@ -640,7 +640,7 @@ export function TripBoard({ trip }: TripBoardProps) {
           />
           <div className="flex min-w-0 flex-1 items-center gap-1.5 text-sm">
             <span className="hidden shrink-0 text-[var(--ink-muted)] sm:inline">
-              TripPlanner
+              You & Me
             </span>
             <ChevronRight
               className="hidden size-3.5 shrink-0 text-[var(--ink-muted)] sm:block"

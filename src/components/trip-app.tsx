@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AppSidebar } from "@/components/app-sidebar";
+import { MemoriesPanel } from "@/components/memories-panel";
 import { TripBoard } from "@/components/trip-board";
+import { WishlistPanel } from "@/components/wishlist-panel";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { isPastTrip } from "@/lib/activities";
 import { deleteActivityImage } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
 import {
@@ -12,11 +15,12 @@ import {
   getStoredTripId,
   setStoredTripId,
 } from "@/lib/trips";
-import type { Trip } from "@/lib/types";
+import type { AppSection, Trip } from "@/lib/types";
 
 export function TripApp() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+  const [section, setSection] = useState<AppSection>("trips");
   const [loading, setLoading] = useState(true);
 
   const selectedTrip = useMemo(
@@ -24,9 +28,18 @@ export function TripApp() {
     [trips, selectedTripId]
   );
 
+  const pastTrips = useMemo(
+    () =>
+      [...trips.filter(isPastTrip)].sort((a, b) =>
+        (b.end_date ?? "").localeCompare(a.end_date ?? "")
+      ),
+    [trips]
+  );
+
   const selectTrip = useCallback((tripId: string) => {
     setSelectedTripId(tripId);
     setStoredTripId(tripId);
+    setSection("trips");
   }, []);
 
   const loadTrips = useCallback(async () => {
@@ -41,29 +54,19 @@ export function TripApp() {
       return [] as Trip[];
     }
 
-    let list = (data as Trip[]) ?? [];
+    const list = (data as Trip[]) ?? [];
+    setTrips(list);
 
     if (list.length === 0) {
-      const { data: created, error: createError } = await supabase
-        .from("trips")
-        .insert({ name: "My Trip", start_date: null, end_date: null })
-        .select("*")
-        .single();
-
-      if (createError || !created) {
-        toast.error("Failed to create default trip");
-        setLoading(false);
-        return [];
-      }
-
-      list = [created as Trip];
+      clearStoredTripId();
+      setSelectedTripId(null);
+      setLoading(false);
+      return list;
     }
-
-    setTrips(list);
 
     const stored = getStoredTripId();
     const stillValid = stored && list.some((t) => t.id === stored);
-    const nextId = stillValid ? stored : list[0].id;
+    const nextId = stillValid ? stored! : list[0].id;
     setSelectedTripId(nextId);
     setStoredTripId(nextId);
     setLoading(false);
@@ -99,7 +102,11 @@ export function TripApp() {
   ) {
     const { data, error } = await supabase
       .from("trips")
-      .insert({ name, start_date: startDate, end_date: endDate })
+      .insert({
+        name,
+        start_date: startDate,
+        end_date: endDate,
+      })
       .select("*")
       .single();
 
@@ -161,7 +168,6 @@ export function TripApp() {
     if (remaining.length === 0) {
       clearStoredTripId();
       setSelectedTripId(null);
-      await loadTrips();
       return;
     }
 
@@ -175,18 +181,34 @@ export function TripApp() {
       <AppSidebar
         trips={trips}
         selectedTripId={selectedTripId}
+        section={section}
+        onSectionChange={setSection}
         onSelect={selectTrip}
         onCreate={handleCreate}
         onRename={handleRename}
         onDelete={handleDelete}
       />
       <SidebarInset>
-        {loading || !selectedTrip ? (
+        {loading ? (
           <div className="flex min-h-svh flex-1 items-center justify-center">
             <div className="h-8 w-8 animate-pulse rounded-full bg-[var(--pastel-mint)]" />
           </div>
-        ) : (
+        ) : section === "wishlist" ? (
+          <WishlistPanel />
+        ) : section === "memories" ? (
+          <MemoriesPanel trips={pastTrips} onOpenTrip={selectTrip} />
+        ) : selectedTrip ? (
           <TripBoard key={selectedTrip.id} trip={selectedTrip} />
+        ) : (
+          <div className="flex min-h-svh flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+            <p className="font-display text-2xl text-[var(--ink)]">
+              No trips yet
+            </p>
+            <p className="max-w-sm text-sm text-[var(--ink-soft)]">
+              Open the sidebar and tap New trip to plan your first adventure
+              together
+            </p>
+          </div>
         )}
       </SidebarInset>
     </SidebarProvider>

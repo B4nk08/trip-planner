@@ -36,6 +36,21 @@ export function todayKey(): string {
   return toDateKey(new Date());
 }
 
+/** Trip whose end_date is before today (been there) */
+export function isPastTrip(trip: {
+  end_date: string | null;
+}): boolean {
+  if (!trip.end_date) return false;
+  return trip.end_date < todayKey();
+}
+
+/** Active / upcoming trips (not past) */
+export function isActiveTrip(trip: {
+  end_date: string | null;
+}): boolean {
+  return !isPastTrip(trip);
+}
+
 /** Inclusive list of YYYY-MM-DD keys from start to end */
 export function eachDateKey(startKey: string, endKey: string): string[] {
   const start = parseDateKey(startKey);

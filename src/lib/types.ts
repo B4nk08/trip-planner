@@ -1,3 +1,11 @@
+export type Partner = {
+  id: string;
+  username: string;
+  display_name: string;
+  password?: string;
+  created_at?: string;
+};
+
 export type Trip = {
   id: string;
   name: string;
@@ -49,3 +57,16 @@ export type FundTransactionInput = {
   amount: number;
   reason: string;
 };
+
+export type WishlistItem = {
+  id: string;
+  title: string;
+  place: string | null;
+  note: string | null;
+  author_id: string | null;
+  author_name: string | null;
+  liked_by: string[];
+  created_at?: string;
+};
+
+export type AppSection = "trips" | "wishlist" | "memories";

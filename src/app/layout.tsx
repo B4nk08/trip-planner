@@ -16,8 +16,8 @@ const body = Nunito_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "TripPlanner",
-  description: "Pastel trip planner with realtime sync",
+  title: "You & Me",
+  description: "Couple trip planner with realtime sync",
 };
 
 export const viewport: Viewport = {

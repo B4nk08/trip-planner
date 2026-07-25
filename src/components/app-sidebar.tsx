@@ -1,16 +1,25 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarIcon, MapPinned, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  CalendarIcon,
+  ChevronDown,
+  History,
+  LogOut,
+  MapPinned,
+  Pencil,
+  Plus,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import { type DateRange } from "react-day-picker";
 import { toast } from "sonner";
+import { usePartnerSession } from "@/lib/partner-session";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -47,16 +56,19 @@ import {
 } from "@/components/ui/popover";
 import {
   formatShortDate,
+  isActiveTrip,
+  isPastTrip,
   toDateKey,
-  todayKey,
 } from "@/lib/activities";
-import type { Trip } from "@/lib/types";
+import type { AppSection, Trip } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 type AppSidebarProps = {
   trips: Trip[];
   selectedTripId: string | null;
+  section: AppSection;
+  onSectionChange: (section: AppSection) => void;
   onSelect: (tripId: string) => void;
   onCreate: (
     name: string,
@@ -82,11 +94,14 @@ function startOfToday() {
 export function AppSidebar({
   trips,
   selectedTripId,
+  section,
+  onSectionChange,
   onSelect,
   onCreate,
   onRename,
   onDelete,
 }: AppSidebarProps) {
+  const { partner, logout } = usePartnerSession();
   const { isMobile, setOpenMobile, state } = useSidebar();
   const isNarrow = useIsMobile();
   const collapsed = state === "collapsed" && !isMobile;
@@ -101,8 +116,23 @@ export function AppSidebar({
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [rangeOpen, setRangeOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [tripsOpen, setTripsOpen] = useState(true);
+  const [memoriesOpen, setMemoriesOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const today = useMemo(() => startOfToday(), []);
+
+  const activeTrips = useMemo(
+    () => trips.filter(isActiveTrip),
+    [trips]
+  );
+  const pastTrips = useMemo(
+    () =>
+      [...trips.filter(isPastTrip)].sort((a, b) =>
+        (b.end_date ?? "").localeCompare(a.end_date ?? "")
+      ),
+    [trips]
+  );
 
   const rangeLabel = useMemo(() => {
     if (!dateRange?.from) return "Select travel dates";
@@ -112,7 +142,19 @@ export function AppSidebar({
   }, [dateRange]);
 
   function handleSelectTrip(tripId: string) {
+    onSectionChange("trips");
     onSelect(tripId);
+    if (isMobile) setOpenMobile(false);
+  }
+
+  function handleOpenWishlist() {
+    onSectionChange("wishlist");
+    if (isMobile) setOpenMobile(false);
+  }
+
+  function handleOpenMemories() {
+    onSectionChange("memories");
+    setMemoriesOpen(true);
     if (isMobile) setOpenMobile(false);
   }
 
@@ -194,104 +236,268 @@ export function AppSidebar({
   return (
     <>
       <Sidebar collapsible="icon" className="border-[var(--line)]">
-        <SidebarHeader className="flex flex-row items-center gap-2 px-2 py-3 group-data-[collapsible=icon]:justify-center">
-          <div
-            className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)] text-white shadow-sm"
-            title="TripPlanner"
-          >
-            <MapPinned className="size-4" />
-          </div>
-          <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-            <p className="truncate font-display text-base leading-tight text-[var(--ink)]">
-              TripPlanner
-            </p>
-            <p className="truncate text-[11px] text-[var(--ink-muted)]">
-              Your trips
-            </p>
-          </div>
+        <SidebarHeader className="p-2 group-data-[collapsible=icon]:items-center">
+          <Popover open={userMenuOpen} onOpenChange={setUserMenuOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-xl px-1 py-1.5 text-left transition hover:bg-white/70",
+                  "group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
+                )}
+                aria-label="Account menu"
+              >
+                <div
+                  className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)] text-white shadow-sm"
+                  title={partner?.display_name ?? "You & Me"}
+                >
+                  <span className="text-xs font-semibold">
+                    {partner
+                      ? partner.display_name.trim().charAt(0).toUpperCase()
+                      : "♥"}
+                  </span>
+                </div>
+                <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+                  <p className="truncate font-display text-base leading-tight text-[var(--ink)]">
+                    {partner?.display_name ?? "You & Me"}
+                  </p>
+                  <p className="truncate text-[11px] text-[var(--ink-muted)]">
+                    {partner ? `@${partner.username}` : "Our trips together"}
+                  </p>
+                </div>
+                <ChevronDown className="size-3.5 shrink-0 text-[var(--ink-muted)] group-data-[collapsible=icon]:hidden" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              side="bottom"
+              className="w-52 rounded-2xl border-white/70 bg-[#fffcfa] p-1.5 shadow-lg"
+            >
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-sm text-[var(--ink)] transition hover:bg-rose-50 hover:text-rose-600"
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  logout();
+                }}
+              >
+                <LogOut className="size-4" />
+                Sign out
+              </button>
+            </PopoverContent>
+          </Popover>
         </SidebarHeader>
 
         <SidebarContent>
           <SidebarGroup className="group-data-[collapsible=icon]:px-1">
-            <SidebarGroupLabel>Trips</SidebarGroupLabel>
-            <SidebarGroupContent>
+            <div
+              className={cn(
+                "mb-1 flex h-8 w-full items-center gap-1 rounded-md",
+                "group-data-[collapsible=icon]:justify-center"
+              )}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setTripsOpen((open) => !open);
+                  onSectionChange("trips");
+                }}
+                className={cn(
+                  "flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-left text-xs font-medium tracking-wide text-[var(--ink-muted)] uppercase transition hover:bg-[var(--pastel-mint)]/50 hover:text-[var(--ink)]",
+                  "group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0",
+                  section === "trips" && "bg-[var(--pastel-mint)]/40 text-[var(--ink)]"
+                )}
+                aria-expanded={tripsOpen}
+              >
+                <MapPinned className="size-3.5 shrink-0 group-data-[collapsible=icon]:size-4" />
+                <span className="flex-1 truncate group-data-[collapsible=icon]:hidden">
+                  Trips
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "size-3.5 shrink-0 transition-transform group-data-[collapsible=icon]:hidden",
+                    tripsOpen ? "rotate-0" : "-rotate-90"
+                  )}
+                />
+              </button>
+              <button
+                type="button"
+                onClick={openCreate}
+                className="flex size-7 shrink-0 items-center justify-center rounded-md text-[var(--accent)] transition hover:bg-[var(--pastel-mint)]/60 group-data-[collapsible=icon]:hidden"
+                aria-label="New trip"
+                title="New trip"
+              >
+                <Plus className="size-3.5" />
+              </button>
+            </div>
+
+            <SidebarGroupContent
+              hidden={!tripsOpen}
+              className={cn(
+                "overflow-hidden transition-all duration-200",
+                tripsOpen ? "mt-0 opacity-100" : "pointer-events-none h-0 opacity-0"
+              )}
+            >
               <SidebarMenu>
-                {trips.map((trip) => {
-                  const active = trip.id === selectedTripId;
-                  return (
-                    <SidebarMenuItem key={trip.id} className="group/trip">
-                      <SidebarMenuButton
-                        isActive={active}
-                        onClick={() => handleSelectTrip(trip.id)}
-                        tooltip={trip.name}
-                        className={cn(
-                          "font-medium",
-                          !collapsed && "pr-16"
-                        )}
-                      >
-                        <span
+                {activeTrips.length === 0 ? (
+                  <p className="px-2 py-2 text-xs text-[var(--ink-muted)] group-data-[collapsible=icon]:hidden">
+                    No active trips
+                  </p>
+                ) : (
+                  activeTrips.map((trip) => {
+                    const active =
+                      section === "trips" && trip.id === selectedTripId;
+                    return (
+                      <SidebarMenuItem key={trip.id} className="group/trip">
+                        <SidebarMenuButton
+                          isActive={active}
+                          onClick={() => handleSelectTrip(trip.id)}
+                          tooltip={trip.name}
                           className={cn(
-                            "flex size-5 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold",
-                            active
-                              ? "bg-[var(--accent)] text-white"
-                              : "bg-[var(--pastel-mint)] text-[var(--ink)]"
+                            "font-medium",
+                            !collapsed && "pr-16"
                           )}
                         >
-                          {tripInitial(trip.name)}
-                        </span>
-                        <span className="truncate">{trip.name}</span>
-                      </SidebarMenuButton>
-                      <div
-                        className={cn(
-                          "absolute top-1.5 right-1 flex items-center gap-0.5 opacity-0 transition group-hover/trip:opacity-100 group-data-[collapsible=icon]:hidden",
-                          active && "opacity-100"
-                        )}
-                      >
-                        <button
-                          type="button"
-                          className="rounded-md p-1 text-[var(--ink-muted)] hover:bg-white/80 hover:text-[var(--ink)]"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openRename(trip);
-                          }}
-                          aria-label={`Rename ${trip.name}`}
+                          <span
+                            className={cn(
+                              "flex size-5 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold",
+                              active
+                                ? "bg-[var(--accent)] text-white"
+                                : "bg-[var(--pastel-mint)] text-[var(--ink)]"
+                            )}
+                          >
+                            {tripInitial(trip.name)}
+                          </span>
+                          <span className="truncate">{trip.name}</span>
+                        </SidebarMenuButton>
+                        <div
+                          className={cn(
+                            "absolute top-1.5 right-1 flex items-center gap-0.5 opacity-0 transition group-hover/trip:opacity-100 group-data-[collapsible=icon]:hidden",
+                            active && "opacity-100"
+                          )}
                         >
-                          <Pencil className="size-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded-md p-1 text-rose-400 hover:bg-rose-50 hover:text-rose-600"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setTripToDelete(trip);
-                          }}
-                          aria-label={`Delete ${trip.name}`}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      </div>
-                    </SidebarMenuItem>
-                  );
-                })}
+                          <button
+                            type="button"
+                            className="rounded-md p-1 text-[var(--ink-muted)] hover:bg-white/80 hover:text-[var(--ink)]"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openRename(trip);
+                            }}
+                            aria-label={`Rename ${trip.name}`}
+                          >
+                            <Pencil className="size-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-md p-1 text-rose-400 hover:bg-rose-50 hover:text-rose-600"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setTripToDelete(trip);
+                            }}
+                            aria-label={`Delete ${trip.name}`}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
+                      </SidebarMenuItem>
+                    );
+                  })
+                )}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          <SidebarGroup className="group-data-[collapsible=icon]:px-1">
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={section === "wishlist"}
+                  tooltip="Want to go"
+                  onClick={handleOpenWishlist}
+                  className="font-medium"
+                >
+                  <Sparkles className="size-4" />
+                  <span>Want to go</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+
+          <SidebarGroup className="group-data-[collapsible=icon]:px-1">
+            <button
+              type="button"
+              onClick={() => {
+                setMemoriesOpen((open) => !open);
+                onSectionChange("memories");
+              }}
+              className={cn(
+                "mb-1 flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-xs font-medium tracking-wide text-[var(--ink-muted)] uppercase transition hover:bg-[var(--pastel-mint)]/50 hover:text-[var(--ink)]",
+                "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0",
+                section === "memories" &&
+                  "bg-[var(--pastel-mint)]/40 text-[var(--ink)]"
+              )}
+              aria-expanded={memoriesOpen}
+            >
+              <History className="size-3.5 shrink-0 group-data-[collapsible=icon]:size-4" />
+              <span className="flex-1 truncate group-data-[collapsible=icon]:hidden">
+                Been there
+              </span>
+              <ChevronDown
+                className={cn(
+                  "size-3.5 shrink-0 transition-transform group-data-[collapsible=icon]:hidden",
+                  memoriesOpen ? "rotate-0" : "-rotate-90"
+                )}
+              />
+            </button>
+
+            <SidebarGroupContent
+              hidden={!memoriesOpen}
+              className={cn(
+                "overflow-hidden transition-all duration-200",
+                memoriesOpen
+                  ? "mt-0 opacity-100"
+                  : "pointer-events-none h-0 opacity-0"
+              )}
+            >
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={section === "memories"}
+                    tooltip="All past trips"
+                    onClick={handleOpenMemories}
+                    className="font-medium"
+                  >
+                    <History className="size-4" />
+                    <span>View all</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                {pastTrips.slice(0, 5).map((trip) => (
+                  <SidebarMenuItem key={trip.id}>
+                    <SidebarMenuButton
+                      isActive={
+                        section === "trips" && trip.id === selectedTripId
+                      }
+                      onClick={() => handleSelectTrip(trip.id)}
+                      tooltip={trip.name}
+                      className="font-medium"
+                    >
+                      <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-[var(--pastel-blush)] text-[11px] font-semibold text-[var(--ink)]">
+                        {tripInitial(trip.name)}
+                      </span>
+                      <span className="truncate">{trip.name}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+                {pastTrips.length === 0 ? (
+                  <p className="px-2 py-2 text-xs text-[var(--ink-muted)] group-data-[collapsible=icon]:hidden">
+                    No past trips yet
+                  </p>
+                ) : null}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
 
-        <SidebarFooter className="p-2">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                tooltip="New trip"
-                onClick={openCreate}
-                className="bg-[var(--accent)] text-white hover:bg-[var(--accent-deep)] hover:text-white data-active:bg-[var(--accent-deep)] data-active:text-white"
-              >
-                <Plus className="size-4" />
-                <span>New trip</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarFooter>
         <SidebarRail />
       </Sidebar>
 

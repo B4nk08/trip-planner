@@ -258,3 +258,91 @@ do $$ begin
   using (bucket_id = 'activity-images');
 exception when duplicate_object then null;
 end $$;
+
+-- ---------------------------------------------
+-- 6) wishlist_items (ideas before locking dates)
+-- ---------------------------------------------
+create table if not exists wishlist_items (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  place text,
+  note text,
+  author_id uuid,
+  author_name text,
+  liked_by uuid[] not null default '{}',
+  created_at timestamptz default now()
+);
+
+alter table wishlist_items enable row level security;
+
+do $$ begin
+  create policy "Allow public read wishlist_items"
+  on wishlist_items for select using (true);
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create policy "Allow public insert wishlist_items"
+  on wishlist_items for insert with check (true);
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create policy "Allow public update wishlist_items"
+  on wishlist_items for update using (true);
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create policy "Allow public delete wishlist_items"
+  on wishlist_items for delete using (true);
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  alter publication supabase_realtime add table wishlist_items;
+exception when duplicate_object then null;
+end $$;
+
+-- ---------------------------------------------
+-- 7) partners (frontend username + password login)
+-- ---------------------------------------------
+create table if not exists partners (
+  id uuid primary key default gen_random_uuid(),
+  username text not null unique,
+  password text not null,
+  display_name text not null,
+  created_at timestamptz default now()
+);
+
+alter table partners enable row level security;
+
+do $$ begin
+  create policy "Allow public read partners"
+  on partners for select using (true);
+exception when duplicate_object then null;
+end $$;
+
+insert into partners (username, password, display_name)
+values
+  ('titikorn', '123456', 'Titikorn'),
+  ('partner', '123456', 'Partner')
+on conflict (username) do nothing;
+
+-- Link wishlist authors after partners exist
+do $$ begin
+  alter table wishlist_items
+    add constraint wishlist_items_author_id_fkey
+    foreign key (author_id) references partners(id) on delete set null;
+exception when duplicate_object then null;
+end $$;
+
+alter table wishlist_items
+  add column if not exists author_id uuid;
+
+alter table wishlist_items
+  add column if not exists author_name text;
+
+alter table wishlist_items
+  add column if not exists liked_by uuid[] not null default '{}';
+
